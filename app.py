@@ -2,48 +2,40 @@
   
 #pip install pytelegrambotapi
 import telebot
+import pandas as pd
+import numpy as np
+import torch
 
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 import config
 
 bot = telebot.TeleBot(config.token)
+#switch to GPU if available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+tokenizer = AutoTokenizer.from_pretrained("Helsinki-NLP/opus-mt-en-ru")
+#load language model
+model = AutoModelForSeq2SeqLM.from_pretrained("Helsinki-NLP/opus-mt-en-ru").to(device)
 
 @bot.message_handler(commands=['start','help'])
 def start(message):
     start_message='''✌️✌️✌️✌️✌️Это бот-переводчик\n\
-                 Выможете выбрать несколько \n\
-                 направлений перевода.\n\
-                 Например англо-русский\n\
-                 (команда /eng_rus)\n\
-                 Русско-английский\n\
-                 (команда /rus_eng)\n\
+                 Выможете отправить мне фразу на английском языке и я ее переведу на русский.\n\
                  Это и много другое я уже умею!✌️\n'''
     bot.send_message(message.chat.id,start_message)
     
-    
-@bot.message_handler(commands=['eng_rus'])
-def start(message):
-    init_message='''✌️✌️✌️✌️✌️Перевод с английского на русский язык.\n\
-                 Функционал в разработке!\n'''
-    bot.send_message(message.chat.id,init_message)
-
-
-@bot.message_handler(commands=['rus_eng'])
-def start(message):
-    init_message='''✌️✌️✌️✌️✌️Перевод с русского на английский язык.\n\
-                 Функционал в разработке!\n'''
-    bot.send_message(message.chat.id,init_message)
-
-    
-@bot.message_handler(commands=['eng_germ'])
-def start(message):
-    init_message='''✌️✌️✌️✌️✌️Перевод с английского на немецкий язык.\n\
-                 Функционал в разработке!\n'''
-    bot.send_message(message.chat.id,init_message)
 
 @bot.message_handler(content_types=["text"])
-def repeat_all_messages(message): # Название функции не играет никакой роли, в принципе
-    answer = f'{message.from_user.first_name} , you send wrong command! Try /eng_rus, /rus_eng'
+def repeat_all_messages(message):
+    '''
+    fucn handes messages from user in text format
+    '''
+    str = message.text+'.'
+
+
+    translation_tokenized = model.generate(**tokenizer(str.split('.')[0], return_tensors="pt", padding=True))
+    result = [tokenizer.decode(t, skip_special_tokens=True) for t in translation_tokenized]
+    answer = '>eng_rus> '+result[0]
 
     bot.send_message(message.chat.id, answer)
 if __name__ == '__main__':
